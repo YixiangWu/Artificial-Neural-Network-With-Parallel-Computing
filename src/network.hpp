@@ -35,7 +35,7 @@ public:
     void train() { stochasticGradientDescent(); }
 
 
-private:
+protected:
     std::size_t pixelsPerImage;
     std::size_t numOfClasses;
 
@@ -82,7 +82,7 @@ private:
     void initializeNetwork(std::size_t numOfHiddenLayers, const std::size_t* numOfNeuronsEachHiddenLayers);
 
     /** Changes biases and weights repeatedly to achieve a minimum cost. */
-    void stochasticGradientDescent();
+    virtual void stochasticGradientDescent();
 
     /** Helps compute partial derivatives of the cost function with respect to any weight or bias in the network. */
     void backpropagation(std::size_t dataPointIndex, double* deltaNablaBiases, double* deltaNablaWeights);
@@ -91,7 +91,7 @@ private:
     void shuffleTrainingData();
 
     /** Evaluates the network (biases and weights) with the test data. */
-    std::size_t evaluate() const;
+    virtual std::size_t evaluate() const;
 };
 
 
