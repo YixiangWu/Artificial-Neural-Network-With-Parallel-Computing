@@ -64,6 +64,15 @@ protected:
     // assuming 1-base indexing for neurons and layers
     double* weights;
 
+    // partial derivatives of the cost function with respect to biases
+    double* nablaBiases;
+
+    // partial derivatives of the cost function with respect to weights
+    double* nablaWeights;
+
+    double* deltaNablaBiases;
+    double* deltaNablaWeights;
+
     unsigned int numOfEpochs;
     std::size_t miniBatchSize;
     double learningRate;
@@ -85,7 +94,7 @@ protected:
     virtual void stochasticGradientDescent();
 
     /** Helps compute partial derivatives of the cost function with respect to any weight or bias in the network. */
-    void backpropagation(std::size_t dataPointIndex, double* deltaNablaBiases, double* deltaNablaWeights);
+    void backpropagation(std::size_t dataPointIndex, double* deltaNablaBiases__, double* deltaNablaWeights__);
 
     /** Shuffles the training data. */
     void shuffleTrainingData();

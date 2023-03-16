@@ -27,7 +27,7 @@ int main() {
     // {784, 100, 10}, Number of Epochs, 10, 3 -> can reach 96% within 5 Epochs
 
     // {784, 100, 10}, 30, 10, 3
-    size_t numOfNeuronsEachHiddenLayers[1] = {100};
+    std::size_t numOfNeuronsEachHiddenLayers[1] = {100};
     Network network(
         PIXELS_PER_IMAGE, NUM_OF_CLASSES, TRAINING_DATA_SIZE, TEST_DATA_SIZE,
         TRAINING_IMAGE_FILE, TRAINING_LABEL_FILE, TEST_IMAGE_FILE, TEST_LABEL_FILE,

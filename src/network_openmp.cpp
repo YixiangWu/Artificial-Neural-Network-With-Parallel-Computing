@@ -1,7 +1,6 @@
 #include "network_openmp.hpp"
 #include "operation.cpp"
 
-#include <algorithm>
 #include <cstddef>
 #include <iostream>
 #include <omp.h>
@@ -12,28 +11,18 @@ void NetworkOpenMP::stochasticGradientDescent() {
     for (unsigned int e = 0; e < numOfEpochs; ++e) {
         std::cout << "Epoch " << e << " ..." << std::endl;
 
-        // partial derivatives of the cost function with respect to biases
-        double* nablaBiases;
-
-        // partial derivatives of the cost function with respect to weights
-        double* nablaWeights;
-
         // split training data into mini batches
         shuffleTrainingData();
         for (std::size_t i = 0; i < trainingSize / miniBatchSize; ++i) {
-            nablaBiases = new double[biasesSize];
             #pragma omp parallel for num_threads(omp_get_max_threads()) shared(biasesSize, nablaBiases)
             for (std::size_t j = 0; j < biasesSize; ++j)
                 nablaBiases[j] = 0;  // initialize all elements to 0
 
-            nablaWeights = new double[weightsSize];
             #pragma omp parallel for num_threads(omp_get_max_threads()) shared(weightsSize, nablaWeights)
             for (std::size_t j = 0; j < weightsSize; ++j)
                 nablaWeights[j] = 0;  // initialize all elements to 0
 
             // look for the proper partial derivatives that reduce the cost
-            double* deltaNablaBiases;
-            double* deltaNablaWeights;
             #pragma omp parallel for num_threads(omp_get_max_threads()) \
                 shared(miniBatchSize, biasesSize, weightsSize, nablaBiases, nablaWeights) \
                 private(deltaNablaBiases, deltaNablaWeights)
@@ -66,9 +55,6 @@ void NetworkOpenMP::stochasticGradientDescent() {
                 shared(miniBatchSize, learningRate, weightsSize, weights, nablaWeights)
             for (std::size_t j = 0; j < weightsSize; ++j)
                 weights[j] -= (learningRate / (double) miniBatchSize) * nablaWeights[j];
-
-            delete[] nablaBiases;
-            delete[] nablaWeights;
         }
         std::cout << "Epoch " << e << " " << evaluate() << "/" << testSize << std::endl;
     }
