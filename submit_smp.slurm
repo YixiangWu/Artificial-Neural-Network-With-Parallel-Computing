@@ -12,12 +12,12 @@ module purge
 module load gcc/10.2.0
 
 # Compile
-g++ main.cpp src/* -o main -fopenmp
+g++ main.cpp src/network.cpp src/network_openmp.cpp -o main -fopenmp
 
 # Run
 ./main
 
 
-# Tip 1: submit this script by running > sbatch submit.slurm
+# Tip 1: submit this script by running > sbatch submit_smp.slurm
 # Tip 2: check the job status by running > squeue -u $USER -M smp
 # Tip 3: check the partition status by running > sinfo -M smp
