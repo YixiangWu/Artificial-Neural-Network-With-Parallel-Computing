@@ -29,13 +29,13 @@ protected:
     double* deltaNablaWeights_;
 
     double* activations_;
-    double* trainingLabels_;
+    double* trainingLabel_;
 
     /** Changes biases and weights repeatedly to achieve a minimum cost. */
     virtual void stochasticGradientDescent();
 
     /** Helps compute partial derivatives of the cost function with respect to any weight or bias in the network. */
-    void backpropagation();
+    void backpropagation(std::size_t dataPointIndex);
 
     /** Evaluates the network (biases and weights) with the test data. */
     virtual std::size_t evaluate() const;

@@ -28,6 +28,7 @@ Network::Network(
 }
 
 Network::~Network() {
+    delete[] trainingDataIndices;
     delete[] trainingImages;
     delete[] trainingLabels;
     delete[] testImages;
@@ -44,6 +45,7 @@ void Network::loadData(
     std::size_t testSize, const std::string& trainingImageFile, const std::string& trainingLabelFile,
     const std::string& testImageFile, const std::string& testLabelFile
 ) {
+    delete[] trainingDataIndices;
     delete[] trainingImages;
     delete[] trainingLabels;
     delete[] testImages;
@@ -66,6 +68,9 @@ void Network::loadTrainingAndTest(
 
     // load training data
     this->trainingSize = trainingSize;
+    trainingDataIndices = new std::size_t[trainingSize];
+    for (std::size_t i = 0; i < trainingSize; ++i)
+        trainingDataIndices[i] = i;
     trainingImages = new double[trainingSize * pixelsPerImage];
     trainingLabels = new double[trainingSize * numOfClasses];
     loadImagesAndLabels(trainingImageFile, trainingLabelFile);
@@ -186,7 +191,7 @@ void Network::stochasticGradientDescent() {
             for (std::size_t j = 0; j < miniBatchSize; ++j) {
                 // std::cout << e << " " << i << " " << j << std::endl;
 
-                backpropagation(i * miniBatchSize + j, deltaNablaBiases, deltaNablaWeights);
+                backpropagation(trainingDataIndices[i * miniBatchSize + j], deltaNablaBiases, deltaNablaWeights);
 
                 // update partial derivatives of the cost function with respect to biases
                 for (std::size_t k = 0; k < biasesSize; ++k)
@@ -303,23 +308,9 @@ void Network::backpropagation(std::size_t dataPointIndex, double* deltaNablaBias
 
 /** Shuffles the training data. */
 void Network::shuffleTrainingData() {
-    std::size_t newIndex;
-
     for (std::size_t i = 0; i < trainingSize; ++i) {
         std::uniform_int_distribution<std::size_t> dist(i, trainingSize - 1);
-        newIndex = dist(mt);
-
-        // images swapping
-        std::swap_ranges(
-            trainingImages + i * pixelsPerImage, trainingImages + (i + 1) * pixelsPerImage,
-            trainingImages + newIndex * pixelsPerImage
-        );
-
-        // labels swapping
-        std::swap_ranges(
-            trainingLabels + i * numOfClasses, trainingLabels + (i + 1) * numOfClasses,
-            trainingLabels + newIndex * numOfClasses
-        );
+        std::swap(trainingDataIndices[i], trainingDataIndices[dist(mt)]);
     }
 }
 

@@ -24,13 +24,13 @@ void NetworkOpenMP::stochasticGradientDescent() {
 
             // look for the proper partial derivatives that reduce the cost
             #pragma omp parallel for num_threads(omp_get_max_threads()) \
-                shared(miniBatchSize, biasesSize, weightsSize, nablaBiases, nablaWeights) \
-                private(deltaNablaBiases, deltaNablaWeights)
+                shared(miniBatchSize, biasesSize, weightsSize, nablaBiases, nablaWeights, \
+                trainingDataIndices) private(deltaNablaBiases, deltaNablaWeights)
             for (std::size_t j = 0; j < miniBatchSize; ++j) {
                 deltaNablaBiases = new double[biasesSize];
                 deltaNablaWeights = new double[weightsSize];
 
-                backpropagation(i * miniBatchSize + j, deltaNablaBiases, deltaNablaWeights);
+                backpropagation(trainingDataIndices[i * miniBatchSize + j], deltaNablaBiases, deltaNablaWeights);
 
                 // update partial derivatives of the cost function with respect to biases
                 for (std::size_t k = 0; k < biasesSize; ++k)

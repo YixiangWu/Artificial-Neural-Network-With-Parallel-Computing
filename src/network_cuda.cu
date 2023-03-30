@@ -22,7 +22,7 @@ NetworkCUDA::NetworkCUDA(
     cudaMalloc(&deltaNablaBiases_, biasesSize * sizeof(double));
     cudaMalloc(&deltaNablaWeights_, weightsSize * sizeof(double));
     cudaMalloc(&activations_, (pixelsPerImage + biasesSize) * sizeof(double));
-    cudaMalloc(&trainingLabels_, numOfClasses * sizeof(double));
+    cudaMalloc(&trainingLabel_, numOfClasses * sizeof(double));
 
     cudaMemcpy(biases_, biases, biasesSize * sizeof(double), cudaMemcpyHostToDevice);
     cudaMemcpy(weights_, weights, weightsSize * sizeof(double), cudaMemcpyHostToDevice);
@@ -36,7 +36,7 @@ NetworkCUDA::~NetworkCUDA() {
     cudaFree(deltaNablaBiases_);
     cudaFree(deltaNablaWeights_);
     cudaFree(activations_);
-    cudaFree(trainingLabels_);
+    cudaFree(trainingLabel_);
 }
 
 /** Changes biases and weights repeatedly to achieve a minimum cost. */
@@ -53,18 +53,7 @@ void NetworkCUDA::stochasticGradientDescent() {
             zero(weightsSize, nablaWeights_);
 
             for (std::size_t j = 0; j < miniBatchSize; ++j) {
-
-                // initialize single batch
-                cudaMemcpy(
-                    trainingLabels_, trainingLabels + (i * miniBatchSize + j) * numOfClasses,
-                    numOfClasses * sizeof(double), cudaMemcpyHostToDevice
-                );
-                cudaMemcpy(
-                    activations_, trainingImages + (i * miniBatchSize + j) * pixelsPerImage,
-                    pixelsPerImage * sizeof(double), cudaMemcpyHostToDevice
-                );
-                
-                backpropagation();
+                backpropagation(trainingDataIndices[i * miniBatchSize + j]);
 
                 // update partial derivatives of the cost function with respect to biases
                 add(biasesSize, nablaBiases_, deltaNablaBiases_, nablaBiases_);
@@ -83,12 +72,20 @@ void NetworkCUDA::stochasticGradientDescent() {
 }
 
 /** Helps compute partial derivatives of the cost function with respect to any weight or bias in the network. */
-void NetworkCUDA::backpropagation() {
+void NetworkCUDA::backpropagation(std::size_t dataPointIndex) {
     double* zs, * weightsDotActivations, * cost, * zPrimes;
     cudaMalloc(&zs, biasesSize * sizeof(double));
     cudaMalloc(&weightsDotActivations, biasesSize * sizeof(double));
     cudaMalloc(&cost, biasesSize * sizeof(double));
     cudaMalloc(&zPrimes, biasesSize * sizeof(double));
+    cudaMemcpy(
+        activations_, trainingImages + dataPointIndex * pixelsPerImage,
+        pixelsPerImage * sizeof(double), cudaMemcpyHostToDevice
+    );
+    cudaMemcpy(
+        trainingLabel_, trainingLabels + dataPointIndex * numOfClasses,
+        numOfClasses * sizeof(double), cudaMemcpyHostToDevice
+    );
     std::size_t a = 0, b = 0, w = 0;
 
     // feed forward
@@ -109,7 +106,7 @@ void NetworkCUDA::backpropagation() {
     // backward pass for the output layer
     b -= numOfNeuronsEachLayer[numOfLayers - 1];
     w -= numOfNeuronsEachLayer[numOfLayers - 2] * numOfNeuronsEachLayer[numOfLayers - 1];
-    subtract(numOfNeuronsEachLayer[numOfLayers - 1], activations_ + a, trainingLabels_, cost + b);
+    subtract(numOfNeuronsEachLayer[numOfLayers - 1], activations_ + a, trainingLabel_, cost + b);
     sigmoidPrime(numOfNeuronsEachLayer[numOfLayers - 1], zs + b, zPrimes + b);
     multiply(numOfNeuronsEachLayer[numOfLayers - 1], cost + b, zPrimes + b, deltaNablaBiases_ + b);
     a -= numOfNeuronsEachLayer[numOfLayers - 2];
@@ -175,7 +172,7 @@ std::size_t NetworkCUDA::evaluate() const {
         }
 
         cudaMemcpy(
-            predictions, activations_ + pixelsPerImage + biasesSize - numOfNeuronsEachLayer[numOfLayers - 1],
+            predictions, activations_ + pixelsPerImage + biasesSize - numOfClasses,
             numOfClasses * sizeof(double), cudaMemcpyDeviceToHost
         );
 
@@ -188,6 +185,7 @@ std::size_t NetworkCUDA::evaluate() const {
         if (testLabels[prediction + (numOfClasses * m)] == 1)
             ++numOfPassedTests;
     }
+
     cudaFree(zs);
     cudaFree(weightsDotActivations);
     delete[] predictions;

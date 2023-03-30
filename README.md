@@ -42,21 +42,21 @@ SHREC-SURG-2022 FIRST-PLACE UNDERGRADUATE RESEARCH PROJECT
 
 | Number of Threads | Elapsed Time (s) | Speed Up | Efficiency |
 | :---------------: | :--------------: | :------: | :--------: |
-|         1         |     1174.212     |    1X    |    100%    |
-|         4         |      338.590     |   3.47X  |    86.7%   |
-|         8         |      196.882     |   5.96X  |    74.6%   |
-|         12        |      148.534     |   7.91X  |    65.9%   |
-|         24        |      100.301     |  11.71X  |    48.8%   |
+|         1         |     1164.952     |    1X    |    100%    |
+|         4         |      321.102     |   3.63X  |    90.7%   |
+|         8         |      183.791     |   6.34X  |    79.2%   |
+|         12        |      135.429     |   8.60X  |    71.7%   |
+|         24        |      87.440      |  13.32X  |    55.5%   |
 
 ### OpenMP In-Depth Statistics
 
 | Number of Threads | Elapsed Time (s) | CPU Time (s) | Effective Time (s) | Spin Time (s) | Overhead Time (s) |
 | :---------------: | :--------------: | :----------: | :----------------: | :-----------: | :---------------: |
-|         1         |     1174.212     |   1173.948   |      1173.948      |       0       |         0         |
-|         4         |      338.590     |   1300.818   |      1251.058      |     49.049    |       0.710       |
-|         8         |      196.882     |   1449.643   |      1356.866      |     91.047    |       1.730       |
-|         12        |      148.534     |   1579.944   |      1457.995      |    119.449    |       2.500       |
-|         24        |      100.301     |   1997.491   |      1689.278      |    303.223    |       4.990       |
+|         1         |     1164.952     |   1164.916   |      1164.916      |       0       |         0         |
+|         4         |      321.102     |   1280.628   |      1238.830      |     40.978    |       0.820       |
+|         8         |      183.791     |   1460.160   |      1354.762      |    103.498    |       1.900       |
+|         12        |      135.429     |   1606.428   |      1449.708      |    153.619    |       3.100       |
+|         24        |      87.440      |   2066.756   |      1687.112      |    374.203    |       5.440       |
 
 ---
 
@@ -76,38 +76,38 @@ SHREC-SURG-2022 FIRST-PLACE UNDERGRADUATE RESEARCH PROJECT
 
 | GPU  | Elapsed Time (s) | Speed Up |
 | :--: | :--------------: | :------: |
-| BASE |     2367.721     |    1X    |
-| V100 |      378.529     |   6.26X  |
+| BASE |     2333.864     |    1X    |
+| V100 |      347.389     |   6.72X  |
 
 ### CUDA API Statistics
 
-| Time (%) | Total Time (ns) |    Calls   |  Avg (ns) |  Min (ns) |   Max (ns)  |         Name         |
-| :------: | :-------------: | :--------: | :-------: | :-------: | :---------: | :------------------: |
-|  41.475  | 158,271,032,774 |  7,200,068 |   21,981  |   1,635   |  7,057,387  |       cudaFree       |
-|  37.678  | 143,778,265,179 | 30,900,000 |   4,653   |   3,703   |  8,750,435  |   cudaLaunchKernel   |
-|  16.427  |  62,685,997,897 |  4,200,002 |   14,925  |   3,361   |  94,404,515 |      cudaMemcpy      |
-|   4.419  |  16,864,055,729 |  7,200,068 |   2,342   |   1,782   | 373,557,410 |      cudaMalloc      |
-|   0.000  |    1,735,639    |      1     | 1,735,639 | 1,735,639 |  1,735,639  |    cuDeviceGetName   |
-|   0.000  |     472,616     |     101    |   4,679   |    177    |   213,346   | cuDeviceGetAttribute |
-|   0.000  |      9,433      |      1     |   9,433   |   9,433   |    9,433    |  cuDeviceGetPCIBusId |
-|   0.000  |      1,941      |      3     |    647    |    233    |    1,454    |   cuDeviceGetCount   |
-|   0.000  |       661       |      2     |    330    |    193    |     468     |      cuDeviceGet     |
-|   0.000  |       402       |      1     |    402    |    402    |     402     |   cuDeviceTotalMem   |
-|   0.000  |       277       |      1     |    277    |    277    |     277     |    cuDeviceGetUuid   |
+| Time (%) | Total Time (ns) |    Calls   | Avg (ns) | Min (ns) |   Max (ns)  |         Name         |
+| :------: | :-------------: | :--------: | :------: | :------: | :---------: | :------------------: |
+|  41.096  | 155,045,597,732 |  7,200,068 |  21,533  |   1,669  |  6,812,344  |       cudaFree       |
+|  38.700  | 146,005,921,896 | 30,900,000 |   4,725  |   3,803  |  6,718,662  |   cudaLaunchKernel   |
+|  15.700  |  59,232,850,946 |  4,200,002 |  14,103  |   3,286  | 114,582,772 |      cudaMemcpy      |
+|   4.505  |  16,995,959,581 |  7,200,068 |   2,360  |   1,805  | 349,176,716 |      cudaMalloc      |
+|   0.000  |     447,248     |     101    |   4,428  |    173   |   196,895   | cuDeviceGetAttribute |
+|   0.000  |      73,431     |      1     |  73,431  |  73,431  |    73,431   |    cuDeviceGetName   |
+|   0.000  |      7,511      |      1     |   7,511  |   7,511  |    7,511    |  cuDeviceGetPCIBusId |
+|   0.000  |      2,000      |      3     |    666   |    228   |    1,539    |   cuDeviceGetCount   |
+|   0.000  |       745       |      1     |    745   |    745   |     745     |   cuDeviceTotalMem   |
+|   0.000  |       672       |      2     |    336   |    170   |     502     |      cuDeviceGet     |
+|   0.000  |       272       |      1     |    272   |    272   |     272     |    cuDeviceGetUuid   |
 
 ### CUDA Kernel Statistics
 
 | Time (%) | Total Time (ns) |   Calls   | Avg (ns) | Min (ns) | Max (ns) |                                               Name                                               |
 | :------: | :-------------: | :-------: | :------: | :------: | :------: | :----------------------------------------------------------------------------------------------: |
-|  80.056  | 225,417,034,828 | 4,200,000 |  53,670  |   8,959  |  151,070 |     `dotMatrixVector_(unsigned int, unsigned int, double const *, double const *, double *)`     |
-|   5.154  |  14,512,906,935 | 3,600,000 |   4,031  |   1,631  |  19,743  | `dotVectorsWithMatrixOut_(unsigned int, unsigned int, double const *, double const *, double *)` |
-|   3.745  |  10,546,105,650 | 7,800,000 |   1,352  |   1,119  |  25,375  |                  `add_(unsigned int, double const *, double const *, double *)`                  |
-|   2.399  |  6,754,057,086  | 3,900,002 |   1,731  |   1,311  |  54,464  |                                         CUDA memcpy HtoD                                         |
-|   2.161  |  6,085,614,644  | 4,200,000 |   1,448  |   1,407  |  20,544  |                        `sigmoid_(unsigned int, double const *, double *)`                        |
-|   2.058  |  5,794,810,606  | 1,800,000 |   3,219  |   3,104  |  17,984  |     `dotVectorMatrix_(unsigned int, unsigned int, double const *, double const *, double *)`     |
-|   1.847  |  5,201,910,607  | 3,600,000 |   1,444  |   1,375  |  21,696  |                      `sigmoidPrime_(unsigned int, double const *, double *)`                     |
-|   1.520  |  4,280,726,856  | 3,600,000 |   1,189  |   1,151  |  23,168  |                `multiply_(unsigned int, double const *, double const *, double *)`               |
-|   0.751  |  2,114,655,756  | 1,800,000 |   1,174  |   1,151  |  19,616  |                `subtract_(unsigned int, double const *, double const *, double *)`               |
-|   0.161  |   454,256,510   |  300,000  |   1,514  |    768   |  13,984  |                                         CUDA memcpy DtoH                                         |
-|   0.085  |   239,532,726   |  150,000  |   1,596  |   1,279  |  13,407  |               `reduceCost_(unsigned int, double, double, double const *, double *)`              |
-|   0.061  |   171,900,756   |  150,000  |   1,146  |    960   |  13,344  |                                  `zero_(unsigned int, double *)`                                 |
+|  79.986  | 223,956,621,061 | 4,200,000 |  53,323  |   8,959  |  149,727 |     `dotMatrixVector_(unsigned int, unsigned int, double const *, double const *, double *)`     |
+|   5.209  |  14,586,170,034 | 3,600,000 |   4,051  |   1,631  |  13,888  | `dotVectorsWithMatrixOut_(unsigned int, unsigned int, double const *, double const *, double *)` |
+|   3.749  |  10,497,297,719 | 7,800,000 |   1,345  |   1,119  |  24,704  |                  `add_(unsigned int, double const *, double const *, double *)`                  |
+|   2.412  |  6,752,526,514  | 3,900,002 |   1,731  |   1,311  |  55,039  |                                         CUDA memcpy HtoD                                         |
+|   2.154  |  6,030,767,262  | 4,200,000 |   1,435  |   1,375  |  16,064  |                        `sigmoid_(unsigned int, double const *, double *)`                        |
+|   2.052  |  5,744,499,605  | 1,800,000 |   3,191  |   3,072  |  13,728  |     `dotVectorMatrix_(unsigned int, unsigned int, double const *, double const *, double *)`     |
+|   1.871  |  5,239,536,150  | 3,600,000 |   1,455  |   1,407  |  19,232  |                      `sigmoidPrime_(unsigned int, double const *, double *)`                     |
+|   1.527  |  4,275,448,111  | 3,600,000 |   1,187  |   1,151  |  23,263  |                `multiply_(unsigned int, double const *, double const *, double *)`               |
+|   0.731  |  2,045,859,482  | 1,800,000 |   1,136  |   1,088  |  20,224  |                `subtract_(unsigned int, double const *, double const *, double *)`               |
+|   0.163  |   455,400,053   |  300,000  |   1,518  |    800   |  13,920  |                                         CUDA memcpy DtoH                                         |
+|   0.086  |   239,676,104   |  150,000  |   1,597  |   1,279  |  12,512  |               `reduceCost_(unsigned int, double, double, double const *, double *)`              |
+|   0.061  |   172,124,025   |  150,000  |   1,147  |    960   |  13,504  |                                  `zero_(unsigned int, double *)`                                 |

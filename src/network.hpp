@@ -42,6 +42,7 @@ protected:
     std::size_t trainingSize;
     std::size_t testSize;
 
+    std::size_t* trainingDataIndices;
     double* trainingImages;
     double* trainingLabels;
     double* testImages;
