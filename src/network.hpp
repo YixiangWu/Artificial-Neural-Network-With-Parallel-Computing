@@ -12,7 +12,7 @@ public:
         std::size_t pixelsPerImage, std::size_t numOfClasses, std::size_t trainingSize,
         std::size_t testSize, const std::string& trainingImageFile, const std::string& trainingLabelFile,
         const std::string& testImageFile, const std::string& testLabelFile, std::size_t numOfHiddenLayers,
-        const std::size_t* numOfNeuronsEachHiddenLayers, unsigned int numOfEpochs,
+        const std::size_t* numOfNeuronsEachHiddenLayers, std::size_t numOfEpochs,
         std::size_t miniBatchSize, double learningRate
     );
 
@@ -26,16 +26,19 @@ public:
 
     void setHiddenLayers(std::size_t numOfHiddenLayers, const std::size_t* numOfNeuronsEachHiddenLayers);
 
-    void setNumOfEpochs(unsigned int numOfEpochs) { this->numOfEpochs = numOfEpochs; }
+    void setNumOfEpochs(std::size_t numOfEpochs) { this->numOfEpochs = numOfEpochs; printInfo(); }
 
-    void setMiniBatchSize(std::size_t miniBatchSize) { this->miniBatchSize = miniBatchSize; }
+    void setMiniBatchSize(std::size_t miniBatchSize) { this->miniBatchSize = miniBatchSize; printInfo(); }
 
-    void setLearningRate(double learningRate) { this->learningRate = learningRate; }
+    void setLearningRate(double learningRate) { this->learningRate = learningRate; printInfo(); }
 
     void train() { stochasticGradientDescent(); }
 
 
 protected:
+    std::string platform;
+    std::size_t numOfThreads;
+
     std::size_t pixelsPerImage;
     std::size_t numOfClasses;
 
@@ -53,6 +56,7 @@ protected:
 
     std::size_t biasesSize;
     std::size_t weightsSize;
+    std::size_t activationsSize;  // activationsSize = pixelsPerImage + biasesSize
 
     std::mt19937 mt;
 
@@ -65,19 +69,51 @@ protected:
     // assuming 1-base indexing for neurons and layers
     double* weights;
 
-    // partial derivatives of the cost function with respect to biases
-    double* nablaBiases;
-
-    // partial derivatives of the cost function with respect to weights
-    double* nablaWeights;
-
+    double* nablaBiases;  // partial derivatives of the cost function with respect to biases
+    double* nablaWeights;  // partial derivatives of the cost function with respect to weights
     double* deltaNablaBiases;
     double* deltaNablaWeights;
 
-    unsigned int numOfEpochs;
+    // helper arrays
+    double* zs;  // store z vectors, layer by layer
+    double* cost;
+    double* zPrimes;  // store z' vectors, layer by layer
+    double* activations;  // store activations, layer by layer
+    double* weightsDotActivations;
+
+    std::size_t numOfEpochs;
     std::size_t miniBatchSize;
     double learningRate;
 
+    /** Prints hyperparameters info of the network. */
+    void printInfo();
+
+    /** Generates random biases and weights from normal distribution. */
+    void generateBiasesAndWeights();
+
+    /** Shuffles the training data. */
+    void shuffleTrainingData();
+
+    /** Allocates memory. */
+    virtual void memoryAllocate() = 0;
+
+    /** Frees memory. */
+    virtual void memoryFree() = 0;
+
+    /** Helps allocate new memory at the end of loading data. */
+    virtual void loadDataHelper() = 0;
+
+    /** Changes biases and weights repeatedly to achieve a minimum cost. */
+    virtual void stochasticGradientDescent() = 0;
+
+    /** Helps compute partial derivatives of the cost function with respect to any weight or bias in the network. */
+    virtual void backpropagation(std::size_t dataPointIndex) = 0;
+
+    /** Evaluates the network (biases and weights) with the test data. */
+    virtual std::size_t evaluate() const = 0;
+
+
+private:
     /** Loads both training and test data. */
     void loadTrainingAndTest(
         std::size_t pixelsPerImage, std::size_t numOfClasses, std::size_t trainingSize,
@@ -90,18 +126,6 @@ protected:
 
     /** Initializes the neural network based on hidden layers. */
     void initializeNetwork(std::size_t numOfHiddenLayers, const std::size_t* numOfNeuronsEachHiddenLayers);
-
-    /** Changes biases and weights repeatedly to achieve a minimum cost. */
-    virtual void stochasticGradientDescent();
-
-    /** Helps compute partial derivatives of the cost function with respect to any weight or bias in the network. */
-    void backpropagation(std::size_t dataPointIndex, double* deltaNablaBiases__, double* deltaNablaWeights__);
-
-    /** Shuffles the training data. */
-    void shuffleTrainingData();
-
-    /** Evaluates the network (biases and weights) with the test data. */
-    virtual std::size_t evaluate() const;
 };
 
 

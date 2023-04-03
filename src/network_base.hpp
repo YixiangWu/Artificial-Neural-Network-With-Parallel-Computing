@@ -1,16 +1,16 @@
-#ifndef NETWORK_OPENMP
-#define NETWORK_OPENMP
+#ifndef NETWORK_BASE
+#define NETWORK_BASE
 
 #include <cstddef>
-#include <omp.h>
 #include <string>
+#include <iostream>
 
 #include "network.hpp"
 
 
-class NetworkOpenMP : public Network {
+class NetworkBase : public Network {
 public:
-    NetworkOpenMP(
+    NetworkBase(
         std::size_t pixelsPerImage, std::size_t numOfClasses, std::size_t trainingSize,
         std::size_t testSize, const std::string& trainingImageFile, const std::string& trainingLabelFile,
         const std::string& testImageFile, const std::string& testLabelFile, std::size_t numOfHiddenLayers,
@@ -19,11 +19,9 @@ public:
     ) : Network::Network(
         pixelsPerImage, numOfClasses, trainingSize, testSize, trainingImageFile, trainingLabelFile, testImageFile,
         testLabelFile, numOfHiddenLayers, numOfNeuronsEachHiddenLayers, numOfEpochs, miniBatchSize, learningRate
-    ) { platform = "OpenMP"; numOfThreads = omp_get_max_threads(); memoryAllocate(); }
+    ) { platform = "Base"; memoryAllocate(); }
 
-    ~NetworkOpenMP() { memoryFree(); }
-
-    void setNumOfThreads(std::size_t numOfThreads);
+    ~NetworkBase() { memoryFree(); }
 
 
 private:

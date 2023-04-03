@@ -2,7 +2,6 @@
 #include "operation.cpp"
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <fstream>
 #include <iostream>
@@ -14,9 +13,9 @@ Network::Network(
     std::size_t pixelsPerImage, std::size_t numOfClasses, std::size_t trainingSize,
     std::size_t testSize, const std::string& trainingImageFile, const std::string& trainingLabelFile,
     const std::string& testImageFile, const std::string& testLabelFile, std::size_t numOfHiddenLayers,
-    const std::size_t* numOfNeuronsEachHiddenLayers, unsigned int numOfEpochs,
+    const std::size_t* numOfNeuronsEachHiddenLayers, std::size_t numOfEpochs,
     std::size_t miniBatchSize, double learningRate
-) : numOfEpochs(numOfEpochs), miniBatchSize(miniBatchSize), learningRate(learningRate) {
+) : numOfThreads(0), numOfEpochs(numOfEpochs), miniBatchSize(miniBatchSize), learningRate(learningRate) {
     loadTrainingAndTest(
         pixelsPerImage, numOfClasses, trainingSize, testSize,
         trainingImageFile, trainingLabelFile, testImageFile, testLabelFile
@@ -34,10 +33,6 @@ Network::~Network() {
     delete[] testImages;
     delete[] testLabels;
     delete[] numOfNeuronsEachLayer;
-    delete[] biases;
-    delete[] weights;
-    delete[] nablaBiases;
-    delete[] nablaWeights;
 }
 
 void Network::loadData(
@@ -55,6 +50,9 @@ void Network::loadData(
         pixelsPerImage, numOfClasses, trainingSize, testSize,
         trainingImageFile, trainingLabelFile, testImageFile, testLabelFile
     );
+
+    activationsSize = pixelsPerImage + biasesSize;
+    loadDataHelper();
 }
 
 /** Loads both training and test data. */
@@ -125,12 +123,9 @@ void Network::loadImagesAndLabels(const std::string& imageFile, const std::strin
 
 void Network::setHiddenLayers(std::size_t numOfHiddenLayers, const std::size_t* numOfNeuronsEachHiddenLayers) {
     delete[] numOfNeuronsEachLayer;
-    delete[] biases;
-    delete[] weights;
-    delete[] nablaBiases;
-    delete[] nablaWeights;
-
+    memoryFree();
     initializeNetwork(numOfHiddenLayers, numOfNeuronsEachHiddenLayers);
+    memoryAllocate();
 }
 
 /** Initializes the neural network based on hidden layers. */
@@ -142,8 +137,7 @@ void Network::initializeNetwork(std::size_t numOfHiddenLayers, const std::size_t
     for (std::size_t l = 0; l < numOfHiddenLayers; ++l)
         numOfNeuronsEachLayer[l + 1] = numOfNeuronsEachHiddenLayers[l];
 
-    biasesSize = 0;
-    weightsSize = 0;
+    biasesSize = 0; weightsSize = 0;
     for (std::size_t l = 1; l < numOfLayers; ++l) {
     // l = 1 -> start from the second layer (excluding the input layer)
 
@@ -154,156 +148,35 @@ void Network::initializeNetwork(std::size_t numOfHiddenLayers, const std::size_t
         weightsSize += numOfNeuronsEachLayer[l - 1] * numOfNeuronsEachLayer[l];
     }
 
+    activationsSize = pixelsPerImage + biasesSize;
+}
+
+/** Prints info of the network. */
+void Network::printInfo() {
+    std::cout << "Network " << platform;
+    if (numOfThreads > 0) std::cout << " with " << numOfThreads << " Treads";
+    std::cout << std::endl << "Network Size: {";
+    for (std::size_t i = 0; i < numOfLayers; ++i) {
+        std::cout << numOfNeuronsEachLayer[i];
+        if (i != numOfLayers - 1) std::cout << ", ";
+    }
+    std::cout << "}" << std::endl;
+    std::cout << "Number of Epochs: " << numOfEpochs << std::endl;
+    std::cout << "Mini-Batch Size: " << miniBatchSize << std::endl;
+    std::cout << "Learning Rate: " << learningRate << std::endl << std::endl;
+}
+
+/** Generates random biases and weights from normal distribution. */
+void Network::generateBiasesAndWeights() {
     std::normal_distribution<double> dist(0, 1);
 
     biases = new double[biasesSize];
     for (std::size_t i = 0; i < biasesSize; ++i)
-        biases[i++] = dist(mt);
+        biases[i] = dist(mt);
 
     weights = new double[weightsSize];
     for (std::size_t i = 0; i < weightsSize; ++i)
-        weights[i++] = dist(mt);
-
-    nablaBiases = new double[biasesSize];
-    nablaWeights = new double[weightsSize];
-}
-
-/** Changes biases and weights repeatedly to achieve a minimum cost. */
-void Network::stochasticGradientDescent() {
-    deltaNablaBiases = new double[biasesSize];
-    deltaNablaWeights = new double[weightsSize];
-
-    for (unsigned int e = 0; e < numOfEpochs; ++e) {
-        std::cout << "Epoch " << e << " ..." << std::endl;
-
-        // split training data into mini batches
-        shuffleTrainingData();
-        for (std::size_t i = 0; i < trainingSize / miniBatchSize; ++i) {
-
-            // initialize batches
-            for (std::size_t j = 0; j < biasesSize; ++j)
-                nablaBiases[j] = 0;  // initialize all elements to 0
-
-            for (std::size_t j = 0; j < weightsSize; ++j)
-                nablaWeights[j] = 0;  // initialize all elements to 0
-
-            // look for the proper partial derivatives that reduce the cost
-            for (std::size_t j = 0; j < miniBatchSize; ++j) {
-                // std::cout << e << " " << i << " " << j << std::endl;
-
-                backpropagation(trainingDataIndices[i * miniBatchSize + j], deltaNablaBiases, deltaNablaWeights);
-
-                // update partial derivatives of the cost function with respect to biases
-                for (std::size_t k = 0; k < biasesSize; ++k)
-                    nablaBiases[k] += deltaNablaBiases[k];
-
-                // update partial derivatives of the cost function with respect to weights
-                for (std::size_t k = 0; k < weightsSize; ++k)
-                    nablaWeights[k] += deltaNablaWeights[k];
-            }
-            // reduce the cost by changing biases
-            for (std::size_t j = 0; j < biasesSize; ++j)
-                biases[j] -= (learningRate / (double) miniBatchSize) * nablaBiases[j];
-
-            // reduce the cost by changing weights
-            for (std::size_t j = 0; j < weightsSize; ++j)
-                weights[j] -= (learningRate / (double) miniBatchSize) * nablaWeights[j];
-        }
-        std::cout << "Epoch " << e << " " << evaluate() << "/" << testSize << std::endl;
-    }
-
-    delete[] deltaNablaBiases;
-    delete[] deltaNablaWeights;
-}
-
-/** Helps compute partial derivatives of the cost function with respect to any weight or bias in the network. */
-void Network::backpropagation(std::size_t dataPointIndex, double* deltaNablaBiases__, double* deltaNablaWeights__) {
-    // store activations, layer by layer
-    auto activations = new double[pixelsPerImage + biasesSize];
-    std::copy(
-        trainingImages + dataPointIndex * pixelsPerImage,
-        trainingImages + (dataPointIndex + 1) * pixelsPerImage, activations
-    );
-
-    // store z vectors, layer by layer
-    auto zs = new double[biasesSize];
-
-    std::size_t a = 0, b = 0, w = 0;
-    // a -> activationsSize (pixelsPerImage + biasesSize), b -> biasesSize, w -> weightsSize
-
-    // feed forward
-    auto weightsDotActivations = new double[biasesSize];  // helper array
-    for (std::size_t l = 1; l < numOfLayers; ++l) {
-        // z = weights dot activations + bias
-        dotMatrixVector(
-            numOfNeuronsEachLayer[l], numOfNeuronsEachLayer[l - 1],
-            weights + w, activations + a, weightsDotActivations + b
-        );
-        add(numOfNeuronsEachLayer[l], weightsDotActivations + b, biases + b, zs + b);
-
-        // new activation = sigmoid(z) = 1 / (1 + (e ^ -z))
-        a += numOfNeuronsEachLayer[l - 1];
-        sigmoid(numOfNeuronsEachLayer[l], zs + b, activations + a);
-
-        b += numOfNeuronsEachLayer[l];
-        w += numOfNeuronsEachLayer[l - 1] * numOfNeuronsEachLayer[l];
-    }
-
-    delete[] weightsDotActivations;
-
-    // backward pass for the output layer
-    b -= numOfNeuronsEachLayer[numOfLayers - 1];
-    w -= numOfNeuronsEachLayer[numOfLayers - 2] * numOfNeuronsEachLayer[numOfLayers - 1];
-    auto cost = new double[biasesSize];
-    // cost for the output layer = (predicted<y> - observed<y>)
-    subtract(
-        numOfNeuronsEachLayer[numOfLayers - 1], activations + a,
-        trainingLabels + dataPointIndex * numOfClasses, cost + b
-    );
-
-    // error[l] = cost[l] HadamardProduct sigmoid'(z[l])
-    // deltaNablaBiases__[l] = error[l]
-    auto zPrimes = new double[biasesSize];  // store z' vectors, layer by layer
-    sigmoidPrime(numOfNeuronsEachLayer[numOfLayers - 1], zs + b, zPrimes + b);
-    multiply(numOfNeuronsEachLayer[numOfLayers - 1], cost + b, zPrimes + b, deltaNablaBiases__ + b);
-    a -= numOfNeuronsEachLayer[numOfLayers - 2];
-
-    // deltaNablaWeights__[l] = error[l] dot activations[l - 1]
-    dotVectorsWithMatrixOut(
-        numOfNeuronsEachLayer[numOfLayers - 1], numOfNeuronsEachLayer[numOfLayers - 2],
-        deltaNablaBiases__ + b, activations + a, deltaNablaWeights__ + w
-    );
-
-    // backward pass for the rest of the layers
-    for (std::size_t l = numOfLayers - 2; l > 0; --l) {
-    // l = numOfLayers - 2 -> start from the back right before the output layer
-
-        a -= numOfNeuronsEachLayer[l - 1];
-        b -= numOfNeuronsEachLayer[l];
-
-        // cost[l] = transpose(weights[l]) dot cost[l + 1]
-        dotVectorMatrix(
-            numOfNeuronsEachLayer[l + 1], numOfNeuronsEachLayer[l],
-            cost + b + numOfNeuronsEachLayer[l], weights + w, cost + b
-        );
-
-        // error[l] = cost[l] HadamardProduct sigmoid'(z[l])
-        // deltaNablaBiases__[l] = error[l]
-        sigmoidPrime(numOfNeuronsEachLayer[l], zs + b, zPrimes + b);
-        multiply(numOfNeuronsEachLayer[l], cost + b, zPrimes + b, deltaNablaBiases__ + b);
-
-        // deltaNablaWeights__[l] = error[l] dot activations[l - 1]
-        w -= numOfNeuronsEachLayer[l - 1] * numOfNeuronsEachLayer[l];
-        dotVectorsWithMatrixOut(
-            numOfNeuronsEachLayer[l], numOfNeuronsEachLayer[l - 1],
-            deltaNablaBiases__ + b, activations + a, deltaNablaWeights__ + w
-        );
-    }
-
-    delete[] activations;
-    delete[] zs;
-    delete[] cost;
-    delete[] zPrimes;
+        weights[i] = dist(mt);
 }
 
 /** Shuffles the training data. */
@@ -312,54 +185,4 @@ void Network::shuffleTrainingData() {
         std::uniform_int_distribution<std::size_t> dist(i, trainingSize - 1);
         std::swap(trainingDataIndices[i], trainingDataIndices[dist(mt)]);
     }
-}
-
-/** Helps evaluate the network (biases and weights) with the test data. */
-std::size_t Network::evaluate() const {
-    std::size_t numOfPassedTests = 0;
-    std::size_t prediction;
-    std::size_t offset = pixelsPerImage + biasesSize - numOfNeuronsEachLayer[numOfLayers - 1];
-
-    double* zs;
-    double* activations;
-    double* weightsDotActivations;  // helper array
-
-    for (std::size_t m = 0; m < testSize; ++m) {
-        prediction = offset;
-
-        zs = new double[biasesSize];
-        activations = new double[pixelsPerImage + biasesSize];
-        std::copy(testImages + m * pixelsPerImage, testImages + (m + 1) * pixelsPerImage, activations);
-
-        // feed forward
-        weightsDotActivations = new double[biasesSize];
-        for (std::size_t l = 1, i = 0, j = 0, k = 0; l < numOfLayers; ++l) {
-            // z = weights dot activations + bias
-            dotMatrixVector(
-                numOfNeuronsEachLayer[l], numOfNeuronsEachLayer[l - 1],
-                weights + j, activations + k, weightsDotActivations + i
-            );
-            add(numOfNeuronsEachLayer[l], weightsDotActivations + i, biases + i, zs + i);
-
-            // new activation = sigmoid(z) = 1 / (1 + (e ^ -z))
-            k += numOfNeuronsEachLayer[l - 1];
-            sigmoid(numOfNeuronsEachLayer[l], zs + i, activations + k);
-
-            i += numOfNeuronsEachLayer[l];
-            j += numOfNeuronsEachLayer[l - 1] * numOfNeuronsEachLayer[l];
-        }
-
-        for (std::size_t i = offset + 1; i < pixelsPerImage + biasesSize; ++i) {
-            if (activations[i] > activations[prediction])
-                prediction = i;
-        }
-
-        if (testLabels[(prediction - offset) + (numOfClasses * m)] == 1)
-            ++numOfPassedTests;
-
-        delete[] zs;
-        delete[] activations;
-        delete[] weightsDotActivations;
-    }
-    return numOfPassedTests;
 }

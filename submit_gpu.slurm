@@ -14,7 +14,7 @@ module load cuda/11.5.0
 module load vtune/2019.4  # commandline interface: amplxe-cl
 
 # Compile
-nvcc main_base.cpp src/network.cpp -o main_base
+nvcc main_base.cpp src/network.cpp src/network_base.cpp -o main_base
 nvcc main_cuda.cu src/network.cpp src/network_cuda.cu -o main_cuda
 
 # Run

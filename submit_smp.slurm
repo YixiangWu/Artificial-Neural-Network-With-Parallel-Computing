@@ -13,7 +13,7 @@ module load gcc/10.2.0
 module load vtune/2019.4  # commandline interface: amplxe-cl
 
 # Compile
-g++ main_base.cpp src/network.cpp -o main_base
+g++ main_base.cpp src/network.cpp src/network_base.cpp -o main_base
 g++ main_openmp.cpp src/network.cpp src/network_openmp.cpp -o main_openmp -fopenmp
 
 # Run
