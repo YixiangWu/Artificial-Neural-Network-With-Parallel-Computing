@@ -9,7 +9,8 @@
 
 void NetworkOpenMP::setNumOfThreads(std::size_t numOfThreads) {
     this->numOfThreads = std::min(numOfThreads,  static_cast<size_t>(omp_get_max_threads()));
-    printInfo();
+    memoryFree();
+    memoryAllocate();
 }
 
 /** Allocates memory. */
@@ -62,41 +63,53 @@ void NetworkOpenMP::stochasticGradientDescent() {
         // split training data into mini batches
         shuffleTrainingData();
         for (std::size_t i = 0; i < trainingSize / miniBatchSize; ++i) {
-            #pragma omp parallel for num_threads(numOfThreads) shared(biasesSize, nablaBiases)
-            for (std::size_t j = 0; j < biasesSize; ++j)
-                nablaBiases[j] = 0;  // initialize all elements to 0
+            #pragma omp parallel num_threads(numOfThreads) shared(biasesSize, weightsSize, nablaBiases, nablaWeights)
+            {
+                #pragma omp for nowait
+                for (std::size_t j = 0; j < biasesSize; ++j)
+                    nablaBiases[j] = 0;  // initialize all elements to 0
 
-            #pragma omp parallel for num_threads(numOfThreads) shared(weightsSize, nablaWeights)
-            for (std::size_t j = 0; j < weightsSize; ++j)
-                nablaWeights[j] = 0;  // initialize all elements to 0
-
-            // look for the proper partial derivatives that reduce the cost
-            #pragma omp parallel for num_threads(numOfThreads) shared(miniBatchSize, \
-                biasesSize, weightsSize, nablaBiases, nablaWeights, deltaNablaBiases, \
-                deltaNablaWeights, trainingDataIndices) schedule(dynamic)
-            for (std::size_t j = 0; j < miniBatchSize; ++j) {
-                backpropagation(trainingDataIndices[i * miniBatchSize + j]);
-
-                // update partial derivatives of the cost function with respect to biases
-                for (std::size_t k = 0; k < biasesSize; ++k)
-                    nablaBiases[k] += deltaNablaBiases[k + omp_get_thread_num() * biasesSize];
-
-                // update partial derivatives of the cost function with respect to weights
-                for (std::size_t k = 0; k < weightsSize; ++k)
-                    nablaWeights[k] += deltaNablaWeights[k + omp_get_thread_num() * weightsSize];
+                #pragma omp for nowait
+                for (std::size_t j = 0; j < weightsSize; ++j)
+                    nablaWeights[j] = 0;  // initialize all elements to 0
             }
 
-            // reduce the cost by changing biases
-            #pragma omp parallel for num_threads(numOfThreads) \
-                shared(miniBatchSize, learningRate, biasesSize, biases, nablaBiases)
-            for (std::size_t j = 0; j < biasesSize; ++j)
-                biases[j] -= (learningRate / (double) miniBatchSize) * nablaBiases[j];
+            // look for the proper partial derivatives that reduce the cost
+            for (std::size_t j = 0; j < miniBatchSize; j += numOfThreads) {
+                #pragma omp parallel for num_threads(numOfThreads) shared(i, j, \
+                    numOfThreads, miniBatchSize, trainingDataIndices)
+                for (std::size_t t = 0; t < std::min(numOfThreads, miniBatchSize - j); ++t)
+                    backpropagation(trainingDataIndices[i * miniBatchSize + j + t]);
 
-            // reduce the cost by changing weights
-            #pragma omp parallel for num_threads(numOfThreads) \
-                shared(miniBatchSize, learningRate, weightsSize, weights, nablaWeights)
-            for (std::size_t j = 0; j < weightsSize; ++j)
-                weights[j] -= (learningRate / (double) miniBatchSize) * nablaWeights[j];
+                #pragma omp parallel num_threads(numOfThreads) shared(j, numOfThreads, \
+                    miniBatchSize, biasesSize, weightsSize, nablaBiases, \
+                    nablaWeights, deltaNablaBiases, deltaNablaWeights)
+                for (std::size_t t = 0; t < std::min(numOfThreads, miniBatchSize - j); ++t) {
+                    // update partial derivatives of the cost function with respect to biases
+                    #pragma omp for nowait
+                    for (std::size_t k = 0; k < biasesSize; ++k)
+                        nablaBiases[k] += deltaNablaBiases[k + t * biasesSize];
+
+                    // update partial derivatives of the cost function with respect to weights
+                    #pragma omp for nowait
+                    for (std::size_t k = 0; k < weightsSize; ++k)
+                        nablaWeights[k] += deltaNablaWeights[k + t * weightsSize];
+                }
+            }
+
+            #pragma omp parallel num_threads(numOfThreads) shared(learningRate, miniBatchSize, \
+                biasesSize, weightsSize, biases, weights, nablaBiases, nablaWeights)
+            {
+                // reduce the cost by changing biases
+                #pragma omp for nowait
+                for (std::size_t j = 0; j < biasesSize; ++j)
+                    biases[j] -= (learningRate / (double) miniBatchSize) * nablaBiases[j];
+
+                // reduce the cost by changing weights
+                #pragma omp for nowait
+                for (std::size_t j = 0; j < weightsSize; ++j)
+                    weights[j] -= (learningRate / (double) miniBatchSize) * nablaWeights[j];
+            }
         }
         std::cout << "Epoch " << e << " " << evaluate() << "/" << testSize << std::endl;
     }
@@ -105,14 +118,16 @@ void NetworkOpenMP::stochasticGradientDescent() {
 /** Helps compute partial derivatives of the cost function with respect to any weight or bias in the network. */
 void NetworkOpenMP::backpropagation(std::size_t dataPointIndex) {
     std::size_t a = 0, b = 0, w = 0;
-    double* deltaNablaBiases_ = deltaNablaBiases + omp_get_thread_num() * biasesSize;
-    double* deltaNablaWeights_ = deltaNablaWeights + omp_get_thread_num() * weightsSize;
+    std::size_t threadNum = omp_get_thread_num();
 
-    double* zs_ = zs + omp_get_thread_num() * biasesSize;
-    double* cost_ = cost + omp_get_thread_num() * biasesSize;
-    double* zPrimes_ = zPrimes + omp_get_thread_num() * biasesSize;
-    double* activations_ = activations + omp_get_thread_num() * activationsSize;
-    double* weightsDotActivations_ = weightsDotActivations + omp_get_thread_num() * biasesSize;
+    double* deltaNablaBiases_ = deltaNablaBiases + threadNum * biasesSize;
+    double* deltaNablaWeights_ = deltaNablaWeights + threadNum * weightsSize;
+
+    double* zs_ = zs + threadNum * biasesSize;
+    double* cost_ = cost + threadNum * biasesSize;
+    double* zPrimes_ = zPrimes + threadNum * biasesSize;
+    double* activations_ = activations + threadNum * activationsSize;
+    double* weightsDotActivations_ = weightsDotActivations + threadNum * biasesSize;
 
     std::copy(
         trainingImages + dataPointIndex * pixelsPerImage,
@@ -178,9 +193,9 @@ std::size_t NetworkOpenMP::evaluate() const {
     double* zs_, * activations_, * weightsDotActivations_;
 
     #pragma omp parallel for num_threads(numOfThreads) reduction(+:numOfPassedTests) \
-        shared(pixelsPerImage, testSize, testImages, testLabels, numOfNeuronsEachLayer, \
-        numOfLayers, weights, biases, biasesSize, activationsSize, offset) \
-        private(zs_, activations_, weightsDotActivations_, prediction) schedule(dynamic)
+        shared(pixelsPerImage, numOfClasses, testSize, testImages, testLabels, numOfLayers, \
+        numOfNeuronsEachLayer, weights, biases, biasesSize, activationsSize, offset) \
+        private(zs_, activations_, weightsDotActivations_, prediction)
     for (std::size_t m = 0; m < testSize; ++m) {
         zs_ = new double[biasesSize];
         activations_ = new double[activationsSize];
