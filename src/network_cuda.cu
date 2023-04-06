@@ -53,15 +53,6 @@ void NetworkCUDA::memoryFree() {
     cudaFree(label);
 }
 
-/** Helps allocate new memory at the end of loading data. */
-void NetworkCUDA::loadDataHelper() {
-    printInfo();
-    cudaFree(activations);
-    cudaFree(label);
-    cudaMalloc(&activations, activationsSize * sizeof(double));
-    cudaMalloc(&label, numOfClasses * sizeof(double));
-}
-
 /** Changes biases and weights repeatedly to achieve a minimum cost. */
 void NetworkCUDA::stochasticGradientDescent() {
     for (std::size_t e = 0; e < numOfEpochs; ++e) {

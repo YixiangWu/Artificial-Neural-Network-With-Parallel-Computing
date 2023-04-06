@@ -100,9 +100,6 @@ protected:
     /** Frees memory. */
     virtual void memoryFree() = 0;
 
-    /** Helps allocate new memory at the end of loading data. */
-    virtual void loadDataHelper() = 0;
-
     /** Changes biases and weights repeatedly to achieve a minimum cost. */
     virtual void stochasticGradientDescent() = 0;
 

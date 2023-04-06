@@ -48,13 +48,6 @@ void NetworkOpenMP::memoryFree() {
     delete[] weightsDotActivations;
 }
 
-/** Helps allocate new memory at the end of loading data. */
-void NetworkOpenMP::loadDataHelper() {
-    printInfo();
-    delete[] activations;
-    activations = new double[activationsSize * numOfThreads];
-}
-
 /** Changes biases and weights repeatedly to achieve a minimum cost. */
 void NetworkOpenMP::stochasticGradientDescent() {
     for (std::size_t e = 0; e < numOfEpochs; ++e) {

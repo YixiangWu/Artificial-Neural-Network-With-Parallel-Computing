@@ -33,9 +33,6 @@ private:
     /** Frees memory. */
     virtual void memoryFree();
 
-    /** Helps allocate new memory at the end of loading data. */
-    virtual void loadDataHelper();
-
     /** Changes biases and weights repeatedly to achieve a minimum cost. */
     virtual void stochasticGradientDescent();
 

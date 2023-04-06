@@ -51,8 +51,7 @@ void Network::loadData(
         trainingImageFile, trainingLabelFile, testImageFile, testLabelFile
     );
 
-    activationsSize = pixelsPerImage + biasesSize;
-    loadDataHelper();
+    setHiddenLayers(numOfLayers - 2, numOfNeuronsEachLayer + 1);
 }
 
 /** Loads both training and test data. */
