@@ -6,6 +6,13 @@ const std::size_t THREADS_PER_1D_BLOCK = 1024;
 const std::size_t THREADS_PER_2D_BLOCK = 32;
 
 
+__global__ void copy_(unsigned int size, const double* arrayIn, double* arrayOut) {
+    const unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index >= size) return;
+    arrayOut[index] = arrayIn[index];
+}
+
+
 /** Initializes an array with zeros. */
 __global__ void zero_(unsigned int size, double* array) {
     const unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -80,24 +87,54 @@ void dotVectorsWithMatrixOut(
 }
 
 
-/** Dot Product */
-__global__ void dotMatrixVector_(
+__global__ void dotMatrixVectorMultiply_(
     unsigned int numOfMatrixRows, unsigned int numOfMatrixCols,
-    const double* matrix, const double* vector, double* vectorOut
+    const double* matrix, const double* vector, double* matrixOut
 ) {
-    const unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
-    if (index >= numOfMatrixRows) return;
-    vectorOut[index] = 0;  // initialize all elements to 0
-    for (unsigned int i = 0; i < numOfMatrixCols; ++i)
-        vectorOut[index] += matrix[index * numOfMatrixCols + i] * vector[i];
+    const unsigned int row = blockIdx.x * blockDim.x + threadIdx.x;
+    const unsigned int col = blockIdx.y * blockDim.y + threadIdx.y;
+    if (row >= numOfMatrixRows || col >= numOfMatrixCols) return;
+    matrixOut[row * numOfMatrixCols + col] = matrix[row * numOfMatrixCols + col] * vector[col];
+}
+
+__global__ void dotMatrixVectorSumReduction_(unsigned int numOfMatrixRows, unsigned int numOfMatrixCols, double* matrix) {
+    const unsigned int row = blockIdx.x * blockDim.x + threadIdx.x;
+    const unsigned int col = blockIdx.y * blockDim.y + threadIdx.y;
+    const unsigned int sharedDataIndex = threadIdx.x * blockDim.y + threadIdx.y;
+    if (row >= numOfMatrixRows) return;
+
+    extern __shared__ double sharedData[];
+    sharedData[sharedDataIndex] = (col < numOfMatrixCols) ? matrix[row * numOfMatrixCols + col] : 0;
+    __syncthreads();
+
+    for (unsigned int stride = blockDim.y / 2; stride > 0; stride >>= 1) {
+        if (threadIdx.y < stride)
+            sharedData[sharedDataIndex] += sharedData[sharedDataIndex + stride];
+        __syncthreads();
+    }
+
+    if (threadIdx.y == 0) matrix[row * gridDim.y + blockIdx.y] = sharedData[sharedDataIndex];
 }
 
 void dotMatrixVector(
-    std::size_t numOfMatrixRows, std::size_t numOfMatrixCols,
-    const double* matrix, const double* vector, double* vectorOut
+    std::size_t numOfMatrixRows, std::size_t numOfMatrixCols, const double* matrix,
+    const double* vector, double* helperMatrix, double* vectorOut
 ) {
+    dim3 gridDim((numOfMatrixRows + THREADS_PER_2D_BLOCK - 1) / THREADS_PER_2D_BLOCK,
+                 (numOfMatrixCols + THREADS_PER_2D_BLOCK - 1) / THREADS_PER_2D_BLOCK);
+    dim3 blockDim(THREADS_PER_2D_BLOCK, THREADS_PER_2D_BLOCK);
+    std::size_t sharedMemSize = blockDim.x * blockDim.y * sizeof(double);
+
+    dotMatrixVectorMultiply_<<<gridDim, blockDim>>>(numOfMatrixRows, numOfMatrixCols, matrix, vector, helperMatrix);
+
+    while (numOfMatrixCols > 1) {
+        dotMatrixVectorSumReduction_<<<gridDim, blockDim, sharedMemSize>>>(numOfMatrixRows, numOfMatrixCols, helperMatrix);
+        numOfMatrixCols = gridDim.y;
+        gridDim.y = (numOfMatrixCols + THREADS_PER_2D_BLOCK - 1) / THREADS_PER_2D_BLOCK;
+    }
+
     std::size_t gridSize = (numOfMatrixRows + THREADS_PER_1D_BLOCK - 1) / THREADS_PER_1D_BLOCK;
-    dotMatrixVector_<<<gridSize, THREADS_PER_1D_BLOCK>>>(numOfMatrixRows, numOfMatrixCols, matrix, vector, vectorOut);
+    copy_<<<gridSize, THREADS_PER_1D_BLOCK>>>(numOfMatrixRows, helperMatrix, vectorOut);
 }
 
 

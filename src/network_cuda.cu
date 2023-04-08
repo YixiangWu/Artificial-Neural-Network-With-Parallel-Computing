@@ -1,6 +1,7 @@
 #include "network_cuda.cuh"
 #include "operation.cu"
 
+#include <algorithm>
 #include <cstddef>
 #include <iostream>
 
@@ -31,6 +32,11 @@ void NetworkCUDA::memoryAllocate() {
     cudaMalloc(&zPrimes, biasesSize * sizeof(double));
     cudaMalloc(&weightsDotActivations, biasesSize * sizeof(double));
 
+    std::size_t helperMatrixSize = numOfNeuronsEachLayer[0] * numOfNeuronsEachLayer[1];
+    for (std::size_t i = 2; i < numOfLayers; ++i)
+        std::max(helperMatrixSize, helperMatrixSize / numOfNeuronsEachLayer[i - 2] * numOfNeuronsEachLayer[i]);
+    cudaMalloc(&helperMatrix, helperMatrixSize * sizeof(double));
+
     cudaMalloc(&activations, activationsSize * sizeof(double));
     cudaMalloc(&label, numOfClasses * sizeof(double));
 }
@@ -48,6 +54,7 @@ void NetworkCUDA::memoryFree() {
     cudaFree(cost);
     cudaFree(zPrimes);
     cudaFree(weightsDotActivations);
+    cudaFree(helperMatrix);
 
     cudaFree(activations);
     cudaFree(label);
@@ -100,8 +107,8 @@ void NetworkCUDA::backpropagation(std::size_t dataPointIndex) {
     // feed forward
     for (std::size_t l = 1; l < numOfLayers; ++l) {
         dotMatrixVector(
-            numOfNeuronsEachLayer[l], numOfNeuronsEachLayer[l - 1],
-            weights + w, activations + a, weightsDotActivations + b
+            numOfNeuronsEachLayer[l], numOfNeuronsEachLayer[l - 1], weights + w,
+            activations + a, helperMatrix, weightsDotActivations + b
         );
         add(numOfNeuronsEachLayer[l], weightsDotActivations + b, biases + b, zs + b);
 
@@ -164,8 +171,8 @@ std::size_t NetworkCUDA::evaluate() const {
         // feed forward
         for (std::size_t l = 1, i = 0, j = 0, k = 0; l < numOfLayers; ++l) {
             dotMatrixVector(
-                numOfNeuronsEachLayer[l], numOfNeuronsEachLayer[l - 1],
-                weights + j, activations_ + k, weightsDotActivations_ + i
+                numOfNeuronsEachLayer[l], numOfNeuronsEachLayer[l - 1], weights + j,
+                activations_ + k, helperMatrix, weightsDotActivations_ + i
             );
             add(numOfNeuronsEachLayer[l], weightsDotActivations_ + i, biases + i, zs_ + i);
 

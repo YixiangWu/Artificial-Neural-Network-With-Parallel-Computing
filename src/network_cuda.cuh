@@ -25,6 +25,7 @@ public:
 
 private:
     double* label;
+    double* helperMatrix;
 
     /** Allocates memory. */
     virtual void memoryAllocate();
